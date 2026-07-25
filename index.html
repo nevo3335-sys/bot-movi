@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>הספרייה של הסרטים</title>
+    <style>
+        :root { 
+            --primary: #6366f1; 
+            --bg: #f8fafc; 
+            --text: #1e293b; 
+            --chat-bg: white;
+            --bot-bg: #f1f5f9;
+            --input-border: #e2e8f0;
+        }
+
+        /* הגדרות מצב לילה (Dark Mode) */
+        body.dark-mode {
+            --bg: #0f172a;
+            --text: #f8fafc;
+            --chat-bg: #1e293b;
+            --bot-bg: #334155;
+            --input-border: #475569;
+        }
+
+        body { background: var(--bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; transition: background 0.4s ease, color 0.4s ease; color: var(--text); }
+        #app { width: 420px; height: 680px; background: var(--chat-bg); border-radius: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--input-border); transition: background 0.4s ease, border-color 0.4s ease; position: relative; }
+        header { background: var(--primary); color: white; padding: 15px 20px; text-align: center; font-weight: bold; font-size: 1.3rem; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; }
+        header button.upgrade-btn { background: #f59e0b; color: white; border: none; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
+        header button.upgrade-btn:hover { background: #d97706; }
+        
+        #chat { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+        .msg { padding: 12px 18px; border-radius: 18px; max-width: 85%; line-height: 1.5; font-size: 0.95rem; box-sizing: border-box; animation: fadeIn 0.3s ease-in-out; }
+        .user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .bot { align-self: flex-start; background: var(--bot-bg); color: var(--text); border-bottom-left-radius: 4px; transition: background 0.4s ease, color 0.4s ease; }
+        
+        /* עיצוב פרסומת בתוך הצ'אט */
+        .ad-box { align-self: center; background: linear-gradient(135deg, #fef08a, #fed7aa); border: 2px dashed #f97316; border-radius: 15px; padding: 15px; text-align: center; max-width: 90%; color: #7c2d12; box-shadow: 0 4px 6px rgba(0,0,0,0.05); animation: fadeIn 0.3s ease-in-out; }
+        .ad-box img { max-width: 100%; border-radius: 10px; margin-top: 10px; }
+        
+        /* עיצוב מודעת בוט פנימית צבעונית ומעוצבת */
+        .promo-banner { align-self: center; background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; border-radius: 15px; padding: 15px; text-align: center; width: 100%; box-sizing: border-box; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3); font-weight: bold; animation: fadeIn 0.3s ease-in-out; }
+        
+        /* חלון פרסומת קופץ עם טיימר מתוקן לחלוטין למניעת תקיעות */
+        #adModal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.3s ease; }
+        .ad-popup-content { background: var(--chat-bg); padding: 25px; border-radius: 20px; text-align: center; max-width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative; color: var(--text); }
+        .close-ad-btn { position: absolute; top: 10px; left: 10px; background: #ef4444; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 1001; }
+        .close-ad-btn:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+
+        a { color: var(--primary); font-weight: bold; text-decoration: none; transition: opacity 0.2s; }
+        a:hover { opacity: 0.8; text-decoration: underline; }
+        .input-area { padding: 15px; border-top: 1px solid var(--input-border); display: flex; gap: 8px; background: var(--chat-bg); transition: background 0.4s ease, border-color 0.4s ease; }
+        input { flex: 1; border: 1px solid var(--input-border); background: var(--bg); color: var(--text); padding: 12px 15px; border-radius: 12px; outline: none; font-size: 1rem; font-family: inherit; transition: all 0.3s ease; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
+        button.send-btn { background: var(--primary); color: white; border: none; padding: 0 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s; font-weight: bold; font-size: 1rem; }
+        button.send-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #loginScreen { width: 420px; height: 680px; background: var(--chat-bg); border-radius: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1px solid var(--input-border); padding: 30px; box-sizing: border-box; transition: background 0.4s ease, border-color 0.4s ease; }
+        #loginScreen h2 { margin: 0 0 10px 0; color: var(--text); text-align: center; }
+        #loginScreen .login-emoji { font-size: 3rem; margin-bottom: 5px; }
+        #loginScreen input { width: 100%; border: 1px solid var(--input-border); background: var(--bg); color: var(--text); padding: 12px 15px; border-radius: 12px; outline: none; font-size: 1rem; font-family: inherit; box-sizing: border-box; }
+        #loginScreen button { width: 100%; background: var(--primary); color: white; border: none; padding: 12px 0; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        #loginError { color: #ef4444; font-size: 0.9rem; min-height: 20px; text-align: center; margin: 0; }
+        #loginScreen .login-hint { color: var(--text); opacity: 0.6; font-size: 0.8rem; text-align: center; margin-top: -6px; }
+
+        .loading-dots span {
+            animation: blink 1.4s infinite both;
+            font-weight: bold;
+            display: inline-block;
+            font-size: 1.4rem;
+            line-height: 1;
+            margin: 0 1px;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: .2s; }
+        .loading-dots span:nth-child(3) { animation-delay: .4s; }
+        @keyframes blink {
+            0% { opacity: .2; }
+            20% { opacity: 1; }
+            100% { opacity: .2; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- מסך התחברות -->
+<div id="loginScreen">
+    <div class="login-emoji">🎬</div>
+    <h2>כניסה לספריית הסרטים</h2>
+    <input type="text" id="loginUser" placeholder="שם משתמש" autocomplete="off" onkeypress="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+    <input type="password" id="loginPass" placeholder="סיסמה" autocomplete="off" onkeypress="if(event.key==='Enter') handleLogin()">
+    <button onclick="handleLogin()">כניסה</button>
+    <p id="loginError"></p>
+    <p class="login-hint">הכנס פרטי משתמש להתחברות</p>
+</div>
+
+<!-- האפליקציה המרכזית -->
+<div id="app" style="display:none;">
+    <header>
+        <span>הספרייה של הסרטים</span>
+        <button id="headerUpgradeBtn" class="upgrade-btn" onclick="handleUpgradeClick()" style="display:none;">⭐ שדרוג</button>
+    </header>
+    
+    <div id="chat"></div>
+    
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="הקלד כאן..." onkeypress="if(event.key==='Enter') handleSend()">
+        <button class="send-btn" onclick="handleSend()">שלח</button>
+    </div>
+
+    <!-- פופאפ פרסומת עם מנגנון טיימר מאובטח מחדש למניעת תקיעות -->
+    <div id="adModal">
+        <div class="ad-popup-content">
+            <button class="close-ad-btn" id="closeAdBtn" disabled onclick="closeAdPopup()">✕</button>
+            <h3 style="margin-top:0; color:#f97316;">✨ חסות מיוחדת ✨</h3>
+            <p id="adTimerText" style="font-size: 0.9rem;">פרסומת זו תיסגר בעוד <span id="adTimerCount">3</span> שניות...</p>
+            <img src="C:\Users\tzuky\Downloads\בוט סרטים\תמונות לפרסומות\WhatsApp Image 2026-07-17 at 14.39.56.jpeg" alt="פרסומת" style="max-width:100%; border-radius:12px; max-height: 250px; object-fit: contain;">
+        </div>
+    </div>
+</div>
+
+<script>
+    const memoryStore = {};
+    const safeStorage = {
+        getItem(key) {
+            try { return localStorage.getItem(key); } 
+            catch (e) { return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null; }
+        },
+        setItem(key, value) {
+            try { localStorage.setItem(key, value); } 
+            catch (e) { memoryStore[key] = value; }
+        }
+    };
+
+    if (safeStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+    }
+
+    const movies = [
+        { title: "מפלצות בעמ מדובב", url: "https://drive.google.com/file/d/0B-GcyEAXTY-cdDdtaXdOUm1nb2s/view?usp=drive_link&resourcekey=0-QwQAzfgOpxcio9cJEGwY9g" },
+        { title: "הרקולס מדובב", url: "https://drive.google.com/file/d/0Bwo4McVLS0_qVkNoVURUdUtrWTA/view?usp=drive_link&resourcekey=0-RgOHUYe9yxFLRd3A7kTkFg" },
+        { title: "בלאגן בחווה מדובב", url: "https://drive.google.com/file/d/0B3PRYjY__zHfcXFoejRERlZzaHc/view?usp=drive_link&resourcekey=0-9R6LRie1dUgWOrtbYDLIaQ" },
+        { title: "גולשים על הירח מדובב", url: "https://drive.google.com/file/d/0B3PRYjY__zHfcXRisejRERlZzaHc/view?usp=drive_link" },
+        { title: "מלך האריות 3 מדובב", url: "https://drive.google.com/file/d/0B-GcyEAXTY-caWpPQVBUcERHN00/view?usp=drive_link&resourcekey=0-4XMWNbRocNaQQyFkCfrzRA" },
+        { title: "פיטר פן 1 מדובב", url: "https://drive.google.com/file/d/0B3PRYjY__zHfU1R0bjU4MDF3UFE/view?usp=drive_link&resourcekey=0-R3lPS2VX7lgx5UZi5ATD0A" },
+        { title: "רבי ג'קוב מתורגם", url: "https://drive.google.com/file/d/0B1JmS97iPhCYU05hWHJwbHJxNDA/view?usp=drive_link&resourcekey=0-xhpbtjlJX42JfgdWAA8v5w" },
+        { title: "משפחת סופר על 2 מדובב", url: "https://drive.google.com/file/d/14VsWUHoInKv0dsO1XfayQsCkNYomwMSQ/view?usp=drive_link" },
+        { title: "תום וג'רי מדובב", url: "https://drive.google.com/file/d/0B6TC25wh6_eyMkV1bFdWUURPRk0/view?usp=drive_link&resourcekey=0-DXl39JA545dD5gW0mICNig" },
+        { title: "קרוסלת קסמים מדובב", url: "https://drive.google.com/file/d/1y5V1Bi2kLQZ3x6gmf55dhFaVTh3KLnCx/view?usp=drive_link" },
+        { title: "אימוג'י מדובב", url: "https://drive.google.com/file/d/1kv_ilq7JPmDYfYMpfENlLzgHDe-K5Kqd/view?usp=drive_link" },
+        { title: "המומינים מדובב", url: "https://drive.google.com/file/d/1FDC99wJ3Zy30o-csVAH1JaPkRq9zf98v/view?usp=drive_link" },
+        { title: "מוגלי ספר הגונגל 2 מדובב", url: "https://drive.google.com/file/d/1jG0kHnubIig_QkiXtBfKUPEhHoxxz39A/view?usp=drive_link" },
+        { title: "קופים בחלל 1 מדובב", url: "https://drive.google.com/file/d/1VqZDSmBrjnQ79_4GrihwcWmieF_5NVqP/view?usp=drive_link" },
+        { title: "קופים בחלל 2 מדובב", url: "https://drive.google.com/file/d/143ljZ8cjPnJBQz35Ks8CgkSHYfAcNR9g/view?usp=drive_link" },
+        { title: "תעלול של טיול מדובב", url: "https://drive.google.com/file/d/1Qn-fpXfIAKMm_vYABzMeh5vSiKeR9c82/view?usp=drive_link" },
+        { title: "סוניק 1 מדובב", url: "https://drive.google.com/file/d/1MVSp_jsqLrIukUp_KkEBDO-2qlIzN6Kl/view" },
+        { title: "סוניק 1 מתורגם", url: "https://drive.google.com/file/d/1ZFp3XwtpkKaSRjIWBA0Wi6iLLWELruER/view" },
+        { title: "סוניק 2 מדובב", url: "https://drive.google.com/file/d/1h_wbqAIF7gvW1lJgDupGLYPTftQbjM90/view" },
+        { title: "סוניק 2 מתורגם", url: "https://drive.google.com/file/d/1VkcoC9FbReZ_AyCNGlFiRShpRYow_qSf/view" },
+        { title: "סוניק 3 מדובב", url: "https://drive.google.com/file/d/1b6c0eCgessEGF3bITKgF06R13Qmth3aQ/view?usp=drivesdk" },
+        { title: "סוניק 3 מתורגם", url: "https://drive.google.com/file/d/1-2LxCAHiMhPgnXrCouuS_c-tByQd4Rq5/view?usp=drivesdk" },
+        { title: "מלך האריות 2 מדובב", url: "https://drive.google.com/file/d/1Iie7fk5VjQppvQ3LmaW8q5qYzVBT0zAw/view" },
+        { title: "מלך האריות 2 מתורגם", url: "https://drive.google.com/file/d/15KUEVOImCjxxj27Y2SvfLN6FEzPLYpR7/view?usp=drivesdk" },
+        { title: "האשליה 1 (2013) מתורגם", url: "https://drive.google.com/file/d/1M4qOIySObIieoOopN1mSqKF8mrg9sxZV/view?usp=drive_link" },
+        { title: "האשליה 2 (2016) מתורגם", url: "https://drive.google.com/file/d/1kYsyrAf-LH26r1ip4Ycy_OMnbIiIB7K2/view?usp=drive_link" },
+        { title: "לשחרר את שולי 2021", url: "https://drive.google.com/file/d/1TcTqcAhAOMSvJMJ_YyUCnK1vbLCjwoZs/view?usp=drive_link" },
+        { title: "עידן הקרח 1 - מדובב", url: "https://drive.google.com/file/d/1gmp4oH5NJ6IKjui0kIJp6qGzPQxiUjLJ/view?usp=drive_link" },
+        { title: "עידן הקרח 2 - מדובב", url: "https://drive.google.com/file/d/1QPeyUvEB7FBS03uCd-i_VdhH2i8T-bj5/view?usp=drive_link" },
+        { title: "עידן הקרח 3 - מדובב", url: "https://drive.google.com/file/d/1hh5wGSuUI5tXCmVZLPBq0qVxiQKt6zPG/view?usp=drive_link" },
+        { title: "עידן הקרח 4 מדובב", url: "https://drive.google.com/file/d/1zdZV0bcSFUMn-7gFoY0EvzVbGQkO7qnB/view?usp=drive_link" },
+        { title: "עידן הקרח 5 - מתורגם", url: "https://drive.google.com/file/d/1mETBBAul8rHGxSqdMBSdwaNtsPa7R2Id/view?usp=drive_link" },
+        { title: "רטטוי מתורגם", url: "https://drive.google.com/file/d/1-ePwUsHXt3PyKnVLJaSzJcvWiX53wkbM/view?usp=drive_link" },
+        { title: "רטטוי מדובב", url: "https://drive.google.com/file/d/1sIC_HYTbLJ1h1PfD2roPJPNJlWdr5syP/view?usp=drive_link" },
+        { title: "קוקו מדובב", url: "https://drive.google.com/file/d/1ku7gjF4oOxq90L_Ym3Pue5TowvvSSgzm/view?usp=drive_link" },
+        { title: "שכחו אותי בבית 1 מתורגם", url: "https://drive.google.com/file/d/1TIHRwXmbjVPD-039UcjnR6hqhHfRjU2C/view?usp=drive_link" },
+        { title: "שכחו אותי בבית 2 מתורגם", url: "https://drive.google.com/file/d/1CdTZGnIFgzZmqUQ9swffjQYv2ophEgsM/view?usp=drive_link" },
+        { title: "שכחו אותי בבית 3 מתורגם", url: "https://drive.google.com/file/d/1JY22J6V-CvwlG5rEu8Vr0gEvYUNVTaSK/view?usp=drive_link" },
+        { title: "שכחו אותי בבית 4 מתורגם", url: "https://drive.google.com/file/d/1gE6WMhbjiQJA9NUukr2M3JMZ9dqlbY8j/view?usp=drive_link" },
+        { title: "שכחו אותי בבית 5 מתורגם", url: "https://drive.google.com/file/d/1gWnMv6-CqwuIy05PrrYIbIQPfK0t7avI/view?usp=drive_link" },
+        { title: "שכחו אותי בבית 6 מתורגם", url: "https://drive.google.com/file/d/1YpLFr3hjB1Q4OFKx8ut0rhCrQSEI0Wn8/view?usp=drive_link" },
+        { title: "לשחרר את שולי סאן", url: "https://drive.google.com/file/d/17xqmUVUabr-7bPwFQiLNYY-gSmTAxTpJ/view?usp=drive_link" },
+        { title: "קופה ראשית - עונה 1", url: "https://drive.google.com/drive/folders/1EQKgG4blkcHaOwKR-aONp8UmpvS_zu78?usp=drive_link" },
+        { title: "קופה ראשית - עונה 2", url: "https://drive.google.com/drive/folders/1Hh5vKqR3bcT02an8xU6gR-PQYemapuGD?usp=drive_link" },
+        { title: "קופה ראשית - עונה 3", url: "https://drive.google.com/drive/folders/178O0S8G3dkt2ciFnBHV20RLoF4_pF2zj?usp=drive_link" },
+        { title: "קופה ראשית - עונה 4", url: "https://drive.google.com/drive/folders/1-3w9Ls36MFBYToY6CytThwrkJuK4shZJ?usp=drive_link" },
+        { title: "קופה ראשית - עונה 5", url: "https://drive.google.com/drive/folders/1D03c7r25XdKVuQGh5srGnTnYXN_nW7i3?usp=drive_link" },
+        { title: "צעצוע של סיפור 1 מדובב", url: "https://drive.google.com/file/d/1tfzJmAiHxp9p_SkG43B2LCYPirjugP86/view?usp=drive_link" },
+        { title: "צעצוע של סיפור 2 מדובב", url: "https://drive.google.com/file/d/1Bi00ZEbZX5eoNL9BJl72o2bCbRVmoz38/view?usp=drive_link" },
+        { title: "צעצוע של סיפור 3 מדובב", url: "https://drive.google.com/file/d/1lgTAyPXH07jAFS_3OwsBfDgs1hnPSs5/view?usp=drive_link" },
+        { title: "קונג פו פנדה 1 מדובב", url: "https://drive.google.com/file/d/0BzYZ_LqmnH95aUY5cm9td3lWc28/view?usp=drive_link&resourcekey=0-ijpreWzkXKJ6-DAd0uI-ZA" },
+        { title: "קונג פו פנדה 2 מדובב", url: "https://drive.google.com/file/d/0BzYZ_LqmnH95Uk5jQ3pHUUtPcDA/view?usp=drive_link&resourcekey=0-_wKktfnIgj-IexPEkIVevg" },
+        { title: "קונג פו פנדה 3 מדובב", url: "https://drive.google.com/file/d/0BxdacDAQkGT4b1pCSG1GdWZjS00/view?usp=drive_link&resourcekey=0-fM5N4Kmqek-laSpeRgWMrw" },
+        { title: "קונג פו פנדה 4 מדובב", url: "https://drive.google.com/file/d/1BxMqaWTxmXQv4x9VthAohLublDylIxEg/view?usp=drive_link" },
+        { title: "זוטרופוליס 1 מדובב", url: "https://drive.google.com/file/d/1UvKNcYv82mWwFxx4Iro8A48r87yWrfcw/view?usp=drive_link" },
+        { title: "זוטרופוליס 2 מדובב", url: "https://drive.google.com/file/d/1IbOtWDzUWIcgVFaSbx1VBki6ogSHWua6/view?usp=drive_link" },
+        { title: "מדגסקאר 2 מדובב", url: "https://drive.google.com/open?id=0ByqCQcaLOkd4M2JuZE9BZUF4Z1k&resourcekey=0-yhp4gcDE-Rwbz3R6bT1QdQ&usp=drive_copy" },
+        { title: "מדגסקאר 3 מדובב", url: "https://drive.google.com/open?id=1uUpP5teToDo-ZlXoBGDTr2KnXNfXFUxf&usp=copy" },
+        { title: "חלומו של דולפין מדובב", url: "https://drive.google.com/file/d/0BzMrW35DyDTSTjY4MXlOaHhvNzA/view?usp=drive_link&resourcekey=0-dd8R0sjC3uV0ZZstiSikzg" },
+        { title: "מוצאים את נמו מדובב", url: "https://drive.google.com/file/d/19Oo68PjUmqeD1mdFPlg7W15CSnNbUD17/view?usp=drive_link" },
+        { title: "בייבי בוס מדובב", url: "https://drive.google.com/file/d/0B3PRYjY__zHfN0R4eUZrX1JJZW8/view?usp=drive_link&resourcekey=0-k00pjgdJZm4T8vaqmKiSOw" },
+        { title: "המיניונים - גנוב על החיים מדובב", url: "https://drive.google.com/open?id=15o4VA-2P1_WwFMML0jUn_tm3XtUhHie3&usp=drive_copy" },
+        { title: "המיניונים - מדובב", url: "https://drive.google.com/file/d/1fZrOpc7WXyxafn8qjP5jr2XDgGbCOwcU/view?usp=drive_link" },
+        { title: "המיניונים - גנוב על הירח מדובב", url: "https://drive.google.com/file/d/1XsE0zkHOrqDN_lMhedlMh7RtAcxXKR1W/view?usp=drive_link" },
+        { title: "המיניונים - גנוב על העולם מדובב", url: "https://drive.google.com/open?id=1M3R50lOVEGy6Bre_IkUDaqCmtTajsqIS&usp=drive_copy" },
+        { title: "המיניונים - גנוב על המיניונים מדובב", url: "https://drive.google.com/file/d/1mR5pfAn0G0zJbOY3wwLJjhobd07v1jRf/view?usp=drive_link" },
+        { title: "ראלף ההורס מדובב", url: "https://drive.google.com/file/d/12lGW_D8wqYiRh_0FFpTQWu2iH3h4TZ7s/view?usp=drive_link" },
+        { title: "אוסף פאט ומאט", url: "https://drive.google.com/drive/folders/1GHZ0aT_u8Hjd9abv-4OuqsieT-2aWGHT?usp=drive_link" },
+        { title: "שפיצים מדובב", url: "https://drive.google.com/file/d/0B3PRYjY__zHfQ3o2NkF4aWJMUkk/view?usp=drive_link&resourcekey=0-vieFJFW7mk4QUPI9XvGblw" },
+        { title: "וול-אי (WALL-E) מדובב", url: "https://drive.google.com/file/d/0B6TC25wh6_eybkg1TUVrZWJWN2M/view?usp=drive_link&resourcekey=0--1aeEhLdG4LEs-NMCRhOsw" },
+        { title: "הדוב פדינגטון 1 מדובב", url: "https://drive.google.com/file/d/1vSa--FAywHGah7OFjOcU7VROE0rlPS_z/view?usp=drive_link" },
+        { title: "נורם בעיר הגדולה מדובב", url: "https://drive.google.com/file/d/0B8AI9c_YQqbvTmNHVExiMl9nZjA/view?usp=drive_link&resourcekey=0-MOE7e3RswZ5_Dq3bl3zDPQ" },
+        { title: "מכוניות 1 - מדובב", url: "https://drive.google.com/open?id=1fVy42Zs1Q6qnKkpBCD2babjjDsFPKaDe&usp=drive_copy" },
+        { title: "מכוניות 2 - מדובב", url: "https://drive.google.com/open?id=1fGDrgoP9KGy-1ANJzmXXU3u9FaJZTocl&usp=drive_copy" },
+        { title: "מכוניות 3 - מדובב", url: "https://drive.google.com/open?id=1cHQjnPBIBVcgS0RZwwWU-cZsVNSVANs7&usp=drive_copy" },
+        { title: "מכוניות 3 - מתורגם", url: "https://drive.google.com/file/d/1IhDbNPTFuQlp-6EA95ciO8RWQlQKOInI/view?usp=drive_link" },
+        { title: "6 גיבורים מדובב", url: "https://drive.google.com/file/d/1y3rWSd-I5LH01navVo886JmP5HkwbmDJ/view?usp=drive_link" },
+        { title: "הקול בראש 2 מדובב", url: "https://drive.google.com/file/d/1YSyxu6QLcK1SjytZmDgKQ6ZgQIAZrio3/view?usp=drive_link" },
+        { title: "בייבי בוס 1 מדובב", url: "https://drive.google.com/file/d/11wrOINV4bm1qr7QJrosFRsnpqAOZJygu/view?usp=drive_link" },
+        { title: "בייבי בוס 2 מדובב", url: "https://drive.google.com/file/d/1vHyGougN_5pVDDb3aYTAEukRf2OOrkL4/view?usp=drive_link" },
+        { title: "המיניונים: עלייתו של גרו מדובב", url: "https://drive.google.com/file/d/1RRPEKKL4GVNH3Jx9UOb9sq4joZiaNoWx/view?usp=drive_link" },
+        { title: "לשבור את הקרח 1 מדובב", url: "https://drive.google.com/file/d/1bhC14v6iL_X1tKxE91se3wXWu5CEGcJP/view?usp=drive_link" },
+        { title: "החיים הסודיים של חיות המחמד מדובב", url: "https://drive.google.com/file/d/1jSx8Sh6skz2GEvan7GR_KJY94bM1fMSJ/view?usp=drive_link" },
+        { title: "אסטריקס מדובב", url: "https://drive.google.com/file/d/10meypwL2pC1w20phu8trtFI_aemB788J/view?usp=drive_link" },
+        { title: "לשיר מדובב", url: "https://drive.google.com/file/d/0B6b_fhbsB9hpRHd3dG42OFJiM2c/view?usp=drive_link&resourcekey=0-ZQmiKD99BKsTrE6CsHIcWA" },
+        { title: "מלך האריות מדובב", url: "https://drive.google.com/file/d/0B-GcyEAXTY-cNnVlX2pxdDhsRHM/view?usp=drive_link&resourcekey=0-eWCo0uXjyMAnM_5rIP2Qvg" },
+        { title: "מוגלי ספר הגונגל מדובב", url: "https://drive.google.com/file/d/1_LJKCrlS5tADgmI8T2X4qI25GP4GVl-U/view?usp=drive_link" },
+        { title: "הדוב פדינגטון 2 מדובב", url: "https://drive.google.com/file/d/13q5iALzRLAlFb7xkX7pZsRAiOy8_jsA_/view?usp=drive_link" },
+        { title: "לא רעים בכלל 1 מדובב", url: "https://drive.google.com/file/d/1jTRqkmn8mLyUU5lZ-ouMwucxMraRV8Fe/view?usp=sharing" },
+        { title: "לא רעים בכלל 1 מתורגם", url: "https://drive.google.com/file/d/1tZOJ9ZAvrNMQpDJrspPaFvwwrFFMllhZ/view?usp=sharing" },
+        { title: "לא רעים בכלל 2 מדובב", url: "https://drive.google.com/file/d/1sEH5ODQhQ7fFx82we2NsLmhTVj6ZfuP7/view?usp=sharing" },
+        { title: "משפחת סופר על 1 מדובב", url: "https://drive.google.com/file/d/0B-GWCo2Qv5ceNjZfeTdfdDltU3M/view?resourcekey=0-Wl26YTE64MUqBQOpEU" },
+        { title: "צעצוע של סיפור 4", url: "https://drive.google.com/file/d/12jd05fQudZ7BkL3btDRDbSLGOoW-pL9B/view" },
+        { title: "צעצוע של סיפור 5", url: "https://drive.google.com/file/d/1SVfZOTxowwcuLbHMFihVxpEwFriEK8Qh/view?usp=drive_link" },
+        { title: "עידן הקרח 5 מדובב", url: "https://drive.google.com/file/d/13dAuAVZFBq5-zoIdUPVe6iRYIoEwv6kM/view?usp=drivesdk" },
+        { title: "מדגסקאר 1", url: "https://drive.google.com/file/d/1wD-w2jAlt1rucCH1GVyr3gHWQI1vUd5H/view?usp=drive_link" }
+    ];
+
+    // ==========================================
+    // ⚙️ אזור הגדרת משתמשים וסיסמאות
+    // ==========================================
+    const users = {
+        "אלחנן": "1111",
+        "איתן": "23841",
+        "יאיר": "55561",
+        "עומר": "אלחנן המלך1",
+        "אריאל": "12881",
+        "שם": "22831",
+        "אנונימי": "91911",
+        "יהונתן": "33431"
+    };
+
+    // ==========================================
+    // 🚫 רשימת משתמשים הפטורים מפרסומות
+    // ==========================================
+    const adFreeUsers = ["אלחנן", "איתן"]; 
+
+    let allFavorites = JSON.parse(safeStorage.getItem('movieFavorites') || '{}');
+    let currentUser = safeStorage.getItem('currentUser') || null;
+    let pendingAction = null; 
+    let messageCounter = 0; 
+
+    function handleLogin() {
+        const userField = document.getElementById('loginUser').value.trim();
+        const passField = document.getElementById('loginPass').value.trim();
+        const errorEl = document.getElementById('loginError');
+
+        if (!userField || !passField) {
+            errorEl.textContent = "נא למלא שם משתמש וסיסמה.";
+            return;
+        }
+
+        if (users.hasOwnProperty(userField) && users[userField] === passField) {
+            currentUser = userField;
+            saveUserData();
+            errorEl.textContent = "";
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            
+            if (adFreeUsers.includes(currentUser)) {
+                document.getElementById('headerUpgradeBtn').style.display = 'none';
+            } else {
+                document.getElementById('headerUpgradeBtn').style.display = 'block';
+            }
+
+            showWelcomeMessage();
+            document.getElementById('userInput').focus();
+        } else {
+            errorEl.textContent = "שם משתמש או סיסמה שגויים, נסה שוב.";
+        }
+    }
+
+    function handleLogout() {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+        document.getElementById('loginError').textContent = '';
+        document.getElementById('chat').innerHTML = '';
+    }
+
+    function showWelcomeMessage() {
+        addBotMsg(`היי ${currentUser}! אני הבוט החכם לספריית הסרטים. 🎬 אני יודע לעשות המון דברים – מחיפוש סרטים ועד קסמים, מועדפים, חישובים ובדיחות. כתוב "עזרה" כדי לראות את כל הפונקציות המורחבות שלי!`);
+    }
+
+    function saveUserData() {
+        safeStorage.setItem('movieFavorites', JSON.stringify(allFavorites));
+        if (currentUser) safeStorage.setItem('currentUser', currentUser);
+    }
+
+    let lastResults = [];
+    let justRandomized = false;
+
+    function handleUpgradeClick() {
+        let upgradeText = `✨ <b>רוצים חוויה מושלמת ללא פרסומות ויותר תוכן איכותי?</b> ✨<br><br>
+        הספרייה שלנו גדלה כל הזמן ומציעה עולמות תוכן עשירים. אם תרצו ליהנות מגלישה חלקה לגמרי, בלי הפסקות, ובגישה לתכנים בלעדיים – <b>אפשר לפנות לאדמין</b> בקלות ונשמח לעזור לכם לשדרג את החשבון! 🚀`;
+        addBotMsg(upgradeText, true);
+    }
+
+    // =========================================================================
+    // 📢 נתב פרסומות מתקדם
+    // =========================================================================
+    function triggerAdIfNeeded() {
+        if (adFreeUsers.includes(currentUser)) return; 
+        
+        messageCounter++;
+        
+        if (messageCounter % 3 === 0) {
+            showAdPopup(); 
+        } else if (messageCounter % 5 === 0) {
+            showInChatPromoBanner(); 
+        }
+    }
+
+    let currentTimerInterval = null; 
+
+    function showAdPopup() {
+        const modal = document.getElementById('adModal');
+        const btn = document.getElementById('closeAdBtn');
+        const timerSpan = document.getElementById('adTimerCount');
+        const timerText = document.getElementById('adTimerText');
+        
+        if (currentTimerInterval) {
+            clearInterval(currentTimerInterval);
+        }
+
+        modal.style.display = 'flex';
+        btn.disabled = true;
+        let timeLeft = 3;
+        
+        // אתחול טקסט ומונה בצורה בטוחה בלי לדרוס את האלמנטים עצמם
+        timerText.innerHTML = `פרסומת זו תיסגר בעוד <span id="adTimerCount">${timeLeft}</span> שניות...`;
+
+        currentTimerInterval = setInterval(() => {
+            timeLeft--;
+            const span = document.getElementById('adTimerCount');
+            if (span) span.textContent = timeLeft;
+
+            if (timeLeft <= 0) {
+                clearInterval(currentTimerInterval);
+                currentTimerInterval = null;
+                btn.disabled = false;
+                if (timerText) timerText.textContent = "ניתן לסגור את הפרסומת כעת ➔";
+            }
+        }, 1000);
+    }
+
+    function closeAdPopup() {
+        if (currentTimerInterval) {
+            clearInterval(currentTimerInterval);
+            currentTimerInterval = null;
+        }
+        document.getElementById('adModal').style.display = 'none';
+    }
+
+    function showInChatPromoBanner() {
+        const chat = document.getElementById('chat');
+        const promoDiv = document.createElement('div');
+        promoDiv.className = 'promo-banner';
+        promoDiv.innerHTML = `🌟 <b>הבוט האולטימטיבי לסרטים וסדרות!</b> 🌟<br>מחפשים הנאה בטוחה לכל המשפחה? הגעתם למקום הנכון. שתפו חברים והמשיכו ליהנות מהמבחר העצום!`;
+        chat.appendChild(promoDiv);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function getMovieDetails(title) {
+        if (title.includes("סוניק")) return { genre: "אנימציה, הרפתקאות, פעולה", summary: "הקיפוד הכחול והמהיר ביותר ביקום מגיע לכדור הארץ ומנסה להציל את העולם מפני דוקטור רובוטניק המרושע ותוכניותיו הזדוניות.", rec: "סרט קצבי, מצחיק בטירוף ומלא באנרגיה שמתאים לכל הגילים!" };
+        if (title.includes("מלך האריות")) return { genre: "אנימציה, דרמה, מוזיקלי", summary: "סיפורו המרגש של סימבה, גור אריות צעיר שמיועד להיות מלך החיות, שעובר מסע התבגרות קשוח בעקבות טרגדיה משפחתית.", rec: "קלאסיקה על-זמנית עם שירים מדהימים ומסר עמוק על אחריות, משפחה ומנהיגות." };
+        if (title.includes("עידן הקרח")) return { genre: "אנימציה, קומדיה, הרפתקאות", summary: "מסע משעשע של חבורת חיות פרה-היסטוריות המנסות להחזיר תינוק אנושי לשבט שלו בעיצומו של תור הקרח הנוקשה.", rec: "סרט קורע מצחוק, הדמויות פשוט בלתי נשכחות!" };
+        if (title.includes("קופה ראשית")) return { genre: "קומדיה, סיטקום ישראלי", summary: "הצצה משעשעת, סאטירית ומצחיקה במיוחד אל מאחורי הקלעים של סופרמרקט 'שפע יששכר' הטיפוסי ועובדיו המשוגעים והאהובים.", rec: "הסדרה הכי קורעת בטלוויזיה, כל פרק הוא פנינה של הומור ישראלי." };
+        if (title.includes("שכחו אותי בבית")) return { genre: "קומדיה, משפחה", summary: "קווין בן השמונה נשאר בטעות לבדו בבית במהלך חופשת חג המולד המשפחתית ונאלץ להגן על הבית מפני צמד גנבים שלומיאלים.", rec: "סרט החגים האולטימטיבי! חכם, מצחיק, ומלא במלכודות גאוניות." };
+        if (title.includes("המיניונים") || title.includes("גנוב על")) return { genre: "אנימציה, קומדיה, משפחה", summary: "עלילותיהם המשעשעות של היצורים הצהובים והחמודים שמחפשים את הנבל המרושע ביותר כדי לשרת אותו נאמנה.", rec: "הומור ויזואלי מטורף ושטותי שיצחיק ילדים ומבוגרים כאחד בלי הפסקה." };
+        if (title.includes("צעצוע של סיפור")) return { genre: "אנימציה, הרפתקאות, משפחה", summary: "הצצה אל חייהם הסודיים של הצעצועים כשהבני אדם לא בסביבה, והיריבות שהופכת לחברות מופלאה בין וודי לבאז.", rec: "סרט מהפכני, מרגש ברמות הגבוהות ביותר שמלמד על חברות אמת ונאמנות." };
+        if (title.includes("קונג פו פנדה")) return { genre: "אנימציה, פעולה, קומדיה", summary: "פו, דוב פנדה שמנמן שאוהב לאכול, נבחר במפתיע להיות לוחם הדרקון האגדי וצריך ללמוד אמנויות לחימה מאפס.", rec: "שילוב מושלם של אקשן מרהיב, הומור אדיר ומסרים חזקים על אמונה עצמית." };
+        if (title.includes("לא רעים בכלל")) return { genre: "אנימציה, פשע, קומדיה", summary: "חבורה של חיות פושעות מנסות לבצע את המתיחה הגדולה מכולן - להעמיד פנים שהן הפכו לטובות ומועילות לחברה.", rec: "סרט שנון, מעוצב להפליא עם קצב נהדר ומלא בטוויסטים מפתיעים." };
+        if (title.includes("מכוניות")) return { genre: "אנימציה, ספורט, קומדיה", summary: "לייטנינג מקווין נתקע בטעות בעיירה נידחת בשם רדיאטור ספרינגס ולומד שהחיים הם לא רק ניצחונות ותהילה.", rec: "גרפיקה נהדרת, דמויות מקסימות ומסר מקסים על חברות, עבודת צוות וצניעות." };
+        if (title.includes("רטטוי")) return { genre: "אנימציה, קומדיה, דרמה", summary: "רמי, עכברוש בעל חוש ריח וטעם יוצא דופן, חולם להפוך לשף מוביל בעיר פריז.", rec: "יצירת מופת קולינרית מעוררת השראה שמראה שכל אחד יכול לבשל!" };
+        if (title.includes("האשליה")) return { genre: "מתח, מסתורין, פעולה", summary: "צמד סוכני חוק רודפים אחר 'ארבעת הפרשים' - חבורת קוסמים שמבצעים שודי בנקים נועזים תוך כדי הופעה.", rec: "מלא בקסמים מרהיבים וטוויסטים מטורפים. חובה לחובבי אשליות ומנטליזם!" };
+        if (title.includes("לשחרר את שולי")) return { genre: "קומדיה ישראלית", summary: "שלישיית חברים יוצאת למסע מטורף בקולומביה כדי להציל את הבן של אחד מהם שנחטף על ידי קרטל סמים.", rec: "הומור ישראלי נטו, שובר קופות היסטרי עם משפטי מפתח שכולם מכירים בעל פה." };
+        if (title.includes("זוטרופוליס")) return { genre: "אנימציה, בלש, קומדיה", summary: "בעיר החיות המודרנית זוטרופוליס, ארנבת משטרתית ושועל חלקלק נאלצים לשתף פעולה כדי לפתור תעלומה.", rec: "סרט חכם בצורה יוצאת מן הכלל, עם ביקורת חברתית מתוחכמת ועלילה בלשית מרתקת." };
+        if (title.includes("מפלצות בעמ")) return { genre: "אנימציה, קומדיה, פנטזיה", summary: "סאלי ומייק הם המפחידים המובילים במפעל לייצור אנרגיה, עד שילדה אנושית חודרת לעולמם.", rec: "אחד הסרטים הכי יצירתיים ומצחיקים של פיקסאר, עם לב ענק וסוף סופר מרגש." };
+        if (title.includes("הרקולס")) return { genre: "אנימציה, הרפתקאות, מוזיקלי", summary: "בן האלים חייב להוכיח שהוא גיבור אמיתי כדי לחזור לבית שלו בהר אולימפוס המפואר.", rec: "קלאסיקה נהדרת של דיסני עם שירים קצביים והומור שנון." };
+        if (title.includes("קוקו")) return { genre: "אנימציה, פנטזיה, מוזיקלי", summary: "מיגל הצעיר חולם להיות מוזיקאי ומוצא את עצמו במסע קסום, מוזיקלי וצבעוני בארץ המתים.", rec: "סרט מרגש בצורה יוצאת דופן שגורם גם למבוגרים להזיל דמעה." };
+        
+        return {
+            genre: "אנימציה, הרפתקאות, קומדיה לכל המשפחה",
+            summary: "סרט הרפתקאות סוחף, מהנה ומצחיק שמביא עמו חוויה קולנועית נהדרת.",
+            rec: "סרט מומלץ ביותר שכיף גדול לראות לבד או ביחד!"
+        };
+    }
+
+    function typeWriterHTML(element, htmlText, delay = 10) {
+        let i = 0;
+        element.innerHTML = "";
+        function step() {
+            if (i < htmlText.length) {
+                if (htmlText[i] === '<') {
+                    let closingBracket = htmlText.indexOf('>', i);
+                    if (closingBracket !== -1) i = closingBracket + 1;
+                    else i++;
+                } else i++;
+                
+                element.innerHTML = htmlText.substring(0, i);
+                const chat = document.getElementById('chat');
+                chat.scrollTop = chat.scrollHeight;
+                setTimeout(step, delay);
+            }
+        }
+        step();
+    }
+
+    function addBotMsg(htmlText, instant = false) {
+        const chat = document.getElementById('chat');
+        const loaderDiv = document.createElement('div');
+        loaderDiv.className = 'msg bot';
+        
+        if (instant) {
+            loaderDiv.innerHTML = htmlText;
+            chat.appendChild(loaderDiv);
+            chat.scrollTop = chat.scrollHeight;
+            triggerAdIfNeeded();
+        } else {
+            loaderDiv.classList.add('loading-dots');
+            loaderDiv.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+            chat.appendChild(loaderDiv);
+            chat.scrollTop = chat.scrollHeight;
+
+            setTimeout(() => {
+                loaderDiv.classList.remove('loading-dots');
+                typeWriterHTML(loaderDiv, htmlText);
+                triggerAdIfNeeded();
+            }, 500);
+        }
+    }
+
+    function addUserMsg(text) {
+        const div = document.createElement('div');
+        div.className = 'msg user';
+        div.innerHTML = text;
+        const chat = document.getElementById('chat');
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+    });
+
+    function addToFavoritesLogic(movieObj) {
+        if (!currentUser) {
+            pendingAction = { type: 'ask_name_for_fav', movie: movieObj };
+            addBotMsg("בכיף! אבל לפני זה... איך קוראים לך? (כדי שאדע על מי לשמור את המועדפים)", false);
+            return;
+        }
+        if (!allFavorites[currentUser]) allFavorites[currentUser] = [];
+        if (!allFavorites[currentUser].includes(movieObj.title)) {
+            allFavorites[currentUser].push(movieObj.title);
+            saveUserData();
+            addBotMsg(`הוספתי את <b>${movieObj.title}</b> למועדפים של ${currentUser}! 🌟`, false);
+        } else {
+            addBotMsg(`הסרט <b>${movieObj.title}</b> כבר נמצא במועדפים שלך, ${currentUser}.`, false);
+        }
+        lastResults = [];
+    }
+
+    function showFavoritesLogic() {
+        let favs = allFavorites[currentUser] || [];
+        if (favs.length === 0) {
+            addBotMsg(`היי ${currentUser}, רשימת המועדפים שלך ריקה כרגע. אתה יכול להוסיף סרטים בקלות על ידי כתיבת פקודה כמו "תוסיף את סוניק למועדפים", ואני אשמור אותם עבורך בבטחה לחוויה מהירה ונוחה בכל פעם שתתחבר!`, false);
+            return;
+        }
+        let matchedMovies = movies.filter(m => favs.includes(m.title));
+        let msg = `<b>המועדפים המורחבים של ${currentUser} 🌟:</b><br>רשימת הסרטים המועדפים עליך נשמרת במערכת במיוחד עבורך. שלח את מספר הסרט כדי לקבל עליו פרטים מלאים, תקציר, ז'אנר וקישור ישיר לצפייה:<br><br>`;
+        msg += matchedMovies.map((m, i) => `${i + 1}. ${m.title}`).join("<br>");
+        addBotMsg(msg, true);
+        lastResults = matchedMovies;
+    }
+
+    let switchUserTarget = "";
+
+    function handleSend() {
+        const input = document.getElementById('userInput');
+        let val = input.value.trim();
+        if (!val) return;
+        
+        addUserMsg(val);
+        input.value = '';
+
+        if (pendingAction) {
+            if (pendingAction.type === 'ask_name_for_fav') {
+                currentUser = val.trim();
+                saveUserData();
+                addToFavoritesLogic(pendingAction.movie);
+                pendingAction = null;
+                return;
+            }
+            if (pendingAction.type === 'ask_name_for_switch') {
+                switchUserTarget = val.trim();
+                if (!users.hasOwnProperty(switchUserTarget)) {
+                    addBotMsg(`שם המשתמש "${switchUserTarget}" אינו קיים במערכת. נסה שוב או כתוב שם משתמש חוקי:`, false);
+                    return;
+                }
+                pendingAction = { type: 'ask_pass_for_switch' };
+                addBotMsg(`נמצא משתמש. אנא הקלד את ה<b>סיסמה</b> עבור ${switchUserTarget}:`, false);
+                return;
+            }
+            if (pendingAction.type === 'ask_pass_for_switch') {
+                let enteredPass = val.trim();
+                if (users[switchUserTarget] === enteredPass) {
+                    currentUser = switchUserTarget;
+                    saveUserData();
+                    if (adFreeUsers.includes(currentUser)) {
+                        document.getElementById('headerUpgradeBtn').style.display = 'none';
+                    } else {
+                        document.getElementById('headerUpgradeBtn').style.display = 'block';
+                    }
+                    addBotMsg(`החלפת המשתמש בוצעה בהצלחה! עכשיו אנחנו מחוברים בתור <b>${currentUser}</b> 🍿`, false);
+                } else {
+                    addBotMsg(`סיסמה שגויה עבור ${switchUserTarget}. החלפת המשתמש בוטלה.`, false);
+                }
+                pendingAction = null;
+                switchUserTarget = "";
+                return;
+            }
+            if (pendingAction.type === 'ask_name_for_show') {
+                currentUser = val.trim();
+                saveUserData();
+                pendingAction = null;
+                showFavoritesLogic(); 
+                return;
+            }
+        }
+
+        if (val.includes("שדרוג") || val.includes("אפשר לשדרג") || val.includes("שרוג") || val.includes("לשדרג")) {
+            handleUpgradeClick();
+            return;
+        }
+
+        const choice = parseInt(val);
+        if (lastResults.length > 0 && !isNaN(choice) && choice > 0 && choice <= lastResults.length) {
+            const selected = lastResults[choice - 1];
+            
+            if (pendingAction && pendingAction.type === 'wait_movie_choice_for_fav') {
+                pendingAction = null;
+                addToFavoritesLogic(selected);
+                return;
+            }
+            
+            const details = getMovieDetails(selected.title);
+            
+            let response = `הנה הקישור והפרטים ל-<b>${selected.title}</b>:<br><br>`;
+            response += `<b>🎭 ז'אנר:</b> ${details.genre}<br>`;
+            response += `<b>📝 תקציר:</b> ${details.summary}<br>`;
+            response += `<b>🍿 למה אני ממליץ:</b> ${details.rec}<br><br>`;
+            response += `<a href='${selected.url}' target='_blank'>לחץ כאן לצפייה</a>`;
+            
+            addBotMsg(response, false);
+            lastResults = []; 
+            justRandomized = false;
+            return;
+        }
+
+        const ignoreWords = ["אפשר", "תן", "בבקשה", "לי", "תביא", "את", "אני", "רוצה", "בא", "לראות", "סרט", "של"];
+        let cleanVal = val;
+        ignoreWords.forEach(word => {
+            const regex = new RegExp(`(^|\\s)${word}(?=\\s|$)`, 'g');
+            cleanVal = cleanVal.replace(regex, ' ');
+        });
+        cleanVal = cleanVal.replace(/\s+/g, ' ').trim();
+
+        if ((val.includes("תוסיף") || val.includes("שמור")) && val.includes("מועדפים")) {
+            let wordsToRemove = ["תוסיף", "את", "למועדפים", "במועדפים", "שמור", "לי", "שלי", "לרשימת", "רשימת", "אותו", "לשם", "סרט"];
+            let searchArr = val.split(" ").filter(w => !wordsToRemove.includes(w));
+            let movieToSearch = searchArr.join(" ");
+            
+            if (!movieToSearch) {
+                addBotMsg("איזה סרט תרצה להוסיף למועדפים?", false);
+                return;
+            }
+            
+            const results = movies.filter(m => movieToSearch.split(" ").every(word => m.title.includes(word)));
+            if (results.length === 0) {
+                addBotMsg("לא מצאתי סרט כזה כדי להוסיף למועדפים...", false);
+            } else if (results.length === 1) {
+                addToFavoritesLogic(results[0]);
+            } else {
+                let msg = `מצאתי ${results.length} סרטים. <b>איזה מהם להוסיף למועדפים? (שלח מספר):</b><br><br>`;
+                msg += results.map((m, i) => `${i + 1}. ${m.title}`).join("<br>");
+                addBotMsg(msg, true);
+                lastResults = results;
+                pendingAction = { type: 'wait_movie_choice_for_fav' };
+            }
+            return;
+        }
+
+        if (cleanVal.includes("התנתק") || cleanVal.includes("יציאה מהמשתמש") || cleanVal.includes("צא מהחשבון")) {
+            addBotMsg(`ביי ${currentUser}! מתראים בקרוב 👋`, false);
+            setTimeout(handleLogout, 1200);
+            return;
+        }
+
+        if (cleanVal === "מי אני" || cleanVal.includes("איזה משתמש מחובר") || cleanVal.includes("מי מחובר")) {
+            addBotMsg(`אתה מחובר כרגע בתור <b>${currentUser}</b> 👤`, false);
+            return;
+        }
+
+        if ((val.includes("תמחק") || val.includes("הסר") || val.includes("תוריד")) && val.includes("מועדפים")) {
+            if (!currentUser || !allFavorites[currentUser] || allFavorites[currentUser].length === 0) {
+                addBotMsg("אין לך עדיין מועדפים למחוק.", false);
+                return;
+            }
+            let wordsToRemove = ["תמחק", "את", "הסר", "תוריד", "מהמועדפים", "מהרשימה", "לי", "שלי", "סרט"];
+            let searchArr = val.split(" ").filter(w => !wordsToRemove.includes(w));
+            let movieToSearch = searchArr.join(" ").trim();
+
+            let favTitles = allFavorites[currentUser];
+            let matchedFavs = movies.filter(m => favTitles.includes(m.title) && movieToSearch.split(" ").every(word => m.title.includes(word)));
+
+            if (matchedFavs.length === 0) {
+                addBotMsg("לא מצאתי סרט כזה ברשימת המועדפים שלך.", false);
+            } else {
+                matchedFavs.forEach(m => {
+                    allFavorites[currentUser] = allFavorites[currentUser].filter(t => t !== m.title);
+                });
+                saveUserData();
+                addBotMsg(`הסרתי מהמועדפים: <b>${matchedFavs.map(m => m.title).join(", ")}</b> 🗑️`, false);
+            }
+            return;
+        }
+
+        if (cleanVal.includes("נקה מועדפים") || cleanVal.includes("מחק את כל המועדפים") || cleanVal.includes("איפוס מועדפים")) {
+            allFavorites[currentUser] = [];
+            saveUserData();
+            addBotMsg("ניקיתי את כל המועדפים שלך. דף חלק להתחלה חדשה! 🧹", false);
+            return;
+        }
+
+        if (cleanVal.includes("כמה סרטים") || cleanVal.includes("כמות הסרטים")) {
+            addBotMsg(`יש לי כרגע <b>${movies.length}</b> סרטים וסדרות בספרייה שלי! 🎞️`, false);
+            return;
+        }
+
+        const genreKeywords = ["אנימציה", "קומדיה", "פעולה", "דרמה", "מתח", "מוזיקלי", "משפחה", "הרפתקאות", "מסתורין", "פנטזיה", "ספורט", "פשע", "בלש"];
+        if (cleanVal.includes("תמליץ") || cleanVal.includes("סרט מסוג") || cleanVal.includes("סרטי")) {
+            let foundGenre = genreKeywords.find(g => val.includes(g));
+            if (foundGenre) {
+                let genreMovies = movies.filter(m => getMovieDetails(m.title).genre.includes(foundGenre));
+                if (genreMovies.length > 0) {
+                    let msg = `הנה כמה סרטים מומלצים מסוג <b>${foundGenre}</b>. <b>שלח מספר לצפייה:</b><br><br>`;
+                    msg += genreMovies.slice(0, 10).map((m, i) => `${i + 1}. ${m.title}`).join("<br>");
+                    addBotMsg(msg, true);
+                    lastResults = genreMovies.slice(0, 10);
+                    return;
+                }
+            }
+        }
+
+        if (val.includes("תחליף משתמש") || val.includes("החלף משתמש") || val.includes("משתמש אחר")) {
+            pendingAction = { type: 'ask_name_for_switch' };
+            addBotMsg("לבקשתך, החלפת משתמש דורשת אימות אבטחה. לאיזה שם משתמש תרצה לעבור?", false);
+            return;
+        }
+
+        if (val === "מועדפים" || val.includes("המועדפים שלי") || val.includes("מועדפים שלי") || val.includes("רשימת מועדפים") || val.includes("תראה לי מועדפים") || val.includes("מה המועדפים")) {
+            if (!currentUser) {
+                pendingAction = { type: 'ask_name_for_show' };
+                addBotMsg("כדי להראות לך את המועדפים, אני צריך לדעת איך קוראים לך. מה השם?", false);
+                return;
+            }
+            showFavoritesLogic();
+            return;
+        }
+
+        if (cleanVal.includes("מצב לילה") || cleanVal.includes("רקע שחור") || cleanVal.includes("רקע כהה") || cleanVal.includes("ערכת נושא כהה")) {
+            document.body.classList.add('dark-mode');
+            safeStorage.setItem('darkMode', 'true');
+            addBotMsg("הפעלתי מצב לילה! הוספתי קצת סטייל והרבה נוחות לעיניים 🌙", false);
+            return;
+        }
+        if (cleanVal.includes("מצב יום") || cleanVal.includes("רקע לבן") || cleanVal.includes("רקע בהיר") || cleanVal.includes("החזר למצב רגיל")) {
+            document.body.classList.remove('dark-mode');
+            safeStorage.setItem('darkMode', 'false');
+            addBotMsg("חזרנו למצב יום! מואר ונעים ☀️", false);
+            return;
+        }
+
+        if (cleanVal.includes("קסם") || cleanVal.includes("תעשה קסם") || cleanVal.includes("קלף")) {
+            const suits = ["לב", "יהלום", "עלון", "תלתן"];
+            const values = ["אס", "2", "3", "4", "5", "6", "7", "8", "9", "10", "נסיך", "מלכה", "מלך"];
+            const randomCard = `${values[Math.floor(Math.random() * values.length)]} ${suits[Math.floor(Math.random() * suits.length)]}`;
+            addBotMsg(`תחשוב על קלף בראש... תרגיז אותו, תערבב... 🪄<br><br>הקלף שעלה בגורל הוא: <b>${randomCard}</b>! האם קלעת בבול?`, false);
+            return;
+        }
+
+        if (val.includes("מה קורה") || val.includes("מה נשמע") || val.includes("איך אתה")) {
+            addBotMsg("הכל מעולה! איך אני יכול לעזור עם הסרטים?", false); return;
+        }
+        if (val === "שלום" || val === "היי" || val === "הי" || val === "אהלן") {
+            addBotMsg("היי! איזה כיף שקפצת לביקור. איך אני יכול לעזור היום?", false); return;
+        }
+        if (val.includes("מי אתה") || val.includes("מה אתה")) {
+            addBotMsg("אני בוט הסרטים האישי שלך! מוכן להמליץ, לחשב, ולהריץ איזה סרט טוב בזמן שאתה נח בבית.", false); return;
+        }
+        if (val.includes("בוקר טוב")) {
+            addBotMsg("בוקר מעולה! מקווה שהקפה כבר מוכן. איזה סרט נחפש היום?", false); return;
+        }
+        if (val.includes("ערב טוב") || val.includes("לילה טוב")) {
+            addBotMsg("ערב מצוין! זמן מושלם להדליק את 'מצב לילה' ולמצוא סרט טוב. 🍿", false); return;
+        }
+        if (val.includes("תודה")) {
+            addBotMsg("בכיף גדול! אני כאן בדיוק בשביל זה. 😊", false); return;
+        }
+        if (val.includes("בדיחה") || val.includes("ספר בדיחה") || val.includes("תבדח") || val.includes("תצחיק")) {
+            let jokes = [
+                "למה מחשבים לא הולכים לים? כי הם מפחדים מהגלישה! 💻",
+                "מה אמר קיר לקיר? נתראה בפינה! 🧱",
+                "למה הביצה לא הלכה למסיבה? כי היא כבר הייתה שבורה. 🥚",
+                "מה עונה שלד לשלד אחר? נעים מאוד, אני עצם המסגרת. 💀"
+            ];
+            let joke = jokes[Math.floor(Math.random() * jokes.length)];
+            addBotMsg(`${joke}<br>קורע, אה? 😂`, false); return;
+        }
+        if (val.includes("ספר לי סיפור") || val.includes("תספר סיפור")) {
+            addBotMsg("היה היה בוט סרטים שישב כל היום מול מסך ריק... עד שמישהו הקליד לו הודעה, ומאז הוא הכי שמח בעולם. סוף. 📖", false); return;
+        }
+        if (val.includes("מה שלומך") || val.includes("איך אתה מרגיש")) {
+            addBotMsg("שלומי מצוין, תודה ששאלת! מוכן לעזור לך למצוא סרט טוב.", false); return;
+        }
+        if (val.includes("משועמם") || val.includes("משעמם לי") || val.includes("אין לי מה לעשות")) {
+            addBotMsg("בוא נפתור את זה! רוצה שאגריל לך סרט אקראי? כתוב 'תגריל' ותן לי להפתיע אותך 🎬", false); return;
+        }
+        if (val.includes("ביי") || val.includes("להתראות") || val.includes("נתראה")) {
+            addBotMsg("ביי! תחזור מתי שרוצה, אני כאן 👋", false); return;
+        }
+        if (val.includes("מי יצר אותך") || val.includes("מי בנה אותך") || val.includes("מי תכנת אותך")) {
+            addBotMsg("נבנתי במיוחד בשביל הספרייה הזאת עם הרבה השקעה, קוד וקסם. 🛠️✨", false); return;
+        }
+
+        if (cleanVal.includes("מה השעה") || cleanVal.includes("שעה")) {
+            let now = new Date();
+            addBotMsg(`השעה עכשיו היא <b>${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}</b> 🕒`, false);
+            return;
+        }
+        if (cleanVal.includes("מה התאריך") || cleanVal.includes("תאריך היום")) {
+            let now = new Date();
+            addBotMsg(`התאריך היום הוא <b>${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}</b> 📅`, false);
+            return;
+        }
+
+        if (val.includes("תחשב") || val.includes("כמה זה") || val.includes("חשב")) {
+            let mathStr = val.replace(/[^0-9+\-*/().]/g, '');
+            if (mathStr.length > 0) {
+                try {
+                    let res = eval(mathStr);
+                    addBotMsg(`התוצאה של החישוב היא: <b>${res}</b> 🧮`, false);
+                    return;
+                } catch(e) {}
+            }
+        }
+
+        if (cleanVal.includes("עץ או פלי") || cleanVal.includes("הטלת מטבע")) {
+            let flip = Math.random() < 0.5 ? "עץ 🌳" : "פלי 🪙";
+            addBotMsg(`הטלתי מטבע ויצא... <b>${flip}</b>!`, false);
+            return;
+        }
+
+        if (cleanVal.includes("קוביה") || cleanVal.includes("זרוק קוביה")) {
+            let dice = Math.floor(Math.random() * 6) + 1;
+            addBotMsg(`זרקתי קוביה ויצא: <b>${dice}</b> 🎲`, false);
+            return;
+        }
+
+        if (cleanVal.includes("משחקים") || cleanVal.includes("משחק") || cleanVal.includes("הפעל משחק")) {
+            let gamesMsg = `<b>🎮 מרכז המשחקים וההגרלות המלא:</b><br><br>
+            במערכת שלנו ישנם מספר משחקים והפעלות מהנות שתוכל לשחק איתي בכל רגע שתחפוץ:<br><br>
+            1. <b>הטלת מטבע ("עץ או פלי"):</b> נותן לי להטיל מטבע וירטואלי ולהגיד לך האם יצא עץ 🌳 או פלי 🪙.<br>
+            2. <b>הטלת קוביה ("זרוק קוביה"):</b> מטיל קוביות משחק סטנדרטיות ומגריל עבורך מספר אקראי בין 1 ל-6 🎲.<br>
+            3. <b>קלף רנדומלי ("קסם"):</b> מבצע בחירה חשאית של קלף רנדומלי מתוך חפיסת קלפים מלאה 🪄.<br>
+            4. <b>מחשבון מהיר ("תחשב..."):</b> מבצע חישובים מתמטיים מדויקים מכל סוג ישירות בצ'אט 🧮.<br><br>
+            <i>טיפ:</i> פשוט הקלד את שם המשחק או הפקודה שתרצה ואבצע זאת מיד!`;
+            addBotMsg(gamesMsg, true);
+            return;
+        }
+
+        if (cleanVal.includes("עזרה") || cleanVal.includes("פונקציות") || cleanVal.includes("יודע לעשות")) {
+            let helpMsg = `<b>📖 מדריך העזרה המלא והמורחב של הבוט:</b><br><br>
+            ברוך הבא למרכז העזרה! ניתן להרחיב כאן על כל פעולה שהבוט יודע לבצע:<br><br>
+            🎬 <b>אזור סרטים וסדרות (מורחב):</b><br>
+            • <b>חיפוש חופשי:</b> כתוב כל שם סרט או סדרה (כמו 'סוניק', 'קופה ראשית', 'מלך האריות') ואמצא אותו מיידית.<br>
+            • <b>רשימה מלאה:</b> כתוב 'רשימה' כדי לראות את כל המבחר העצום.<br>
+            • <b>הגרלת סרט:</b> כתוב 'תגריל' ואבחר עבורך סרט אקראי לצפייה.<br>
+            • <b>המלצה לפי ז'אנר:</b> כתוב למשל 'סרטי קומדיה' או 'אנימציה' לקבלת רשימה ממוקדת.<br><br>
+            🌟 <b>ניהול מועדפים (מורחב):</b><br>
+            • תוכל לשמור סרטים לרשימה האישית שלך על ידי כתיבת "תוסיף [שם הסרט] למועדפים".<br>
+            • כדי לצפות בכל מה ששמרת, הקלד "מועדפים". הרשימה תציג לך את כל הסרטים האישיים שלך יחד עם אפשרות לשלוח מספר ולקבל עליהם פרטים מלאים וקישור ישיר לצפייה!<br>
+            • ניתן למחוק או לנקות את המועדפים בכל שלב.<br><br>
+            🎮 <b>משחקים והפעלות (מורחב):</b><br>
+            • כתוב "משחקים" כדי לקבל פירוט מלא על כל משחקי הקוביות, המטבעות, הקלפים והחישובים שהבוט מציע.<br><br>
+            👤 <b>ניהול חשבון ואבטחה:</b><br>
+            • <b>החלף משתמש:</b> מאפשר מעבר מאובטח לחשבון אחר באמצעות הקלדת שם משתמש וסיסמה.<br>
+            • <b>התנתקות:</b> יציאה מלאה מהמערכת.<br><br>`;
+            
+            if (!adFreeUsers.includes(currentUser)) {
+                helpMsg += `⭐ <b>שדרוג חשבון:</b><br>• כתוב 'אפשר לשדרג' או לחץ על כפתור השדרוג בראש המסך לקבלת חוויה נטולת פרסומות.<br><br>`;
+            }
+
+            helpMsg += `<i>💡 שימו לב: ניתן להרחבה נוספת בכל עת לפי בקשתך!</i>`;
+            
+            addBotMsg(helpMsg, true);
+            return;
+        }
+
+        if (cleanVal.includes("תגריל") || cleanVal.includes("תבחר") || cleanVal.includes("הפתעה")) {
+            const randomMovie = movies[Math.floor(Math.random() * movies.length)];
+            const details = getMovieDetails(randomMovie.title);
+            
+            let response = `הגרלתי לך את הסרט: <b>${randomMovie.title}</b>.<br><br>`;
+            response += `<b>🎭 ז'אנר:</b> ${details.genre}<br>`;
+            response += `<b>📝 תקציר:</b> ${details.summary}<br>`;
+            response += `<b>🍿 למה אני ממליץ:</b> ${details.rec}<br><br>`;
+            response += `<a href='${randomMovie.url}' target='_blank'>לחץ כאן לצפייה</a>`;
+            
+            addBotMsg(response, false);
+            justRandomized = true;
+            lastResults = []; 
+            return;
+        }
+        justRandomized = false; 
+
+        if (cleanVal === "רשימה" || cleanVal === "סרטים" || cleanVal.includes("תביא רשימה")) {
+            let msg = "הנה רשימת הסרטים המלאה! <b>שלח לי רק את המספר של הסרט שאתה רוצה לראות:</b><br><br>";
+            msg += movies.map((m, i) => `${i + 1}. ${m.title}`).join("<br>");
+            addBotMsg(msg, true);
+            lastResults = movies; 
+            return;
+        }
+
+        if (!cleanVal) {
+            addBotMsg("אני מחכה... תגיד לי איזה סרט לחפש או תכתוב 'עזרה'.", false);
+            return;
+        }
+
+        const searchWords = cleanVal.split(" ");
+        const results = movies.filter(m => searchWords.every(word => m.title.includes(word)));
+
+        if (results.length === 0) {
+            addBotMsg("לא מצאתי סרט כזה... תנסה שם אחר, או תכתוב 'רשימה'.", false);
+            lastResults = [];
+        } else if (results.length === 1) {
+            const details = getMovieDetails(results[0].title);
+            let response = `מצאתי את הסרט: <b>${results[0].title}</b>.<br><br>`;
+            response += `<b>🎭 ז'אנר:</b> ${details.genre}<br>`;
+            response += `<b>📝 תקציר:</b> ${details.summary}<br>`;
+            response += `<b>🍿 למה אני ממליץ:</b> ${details.rec}<br><br>`;
+            response += `<a href='${results[0].url}' target='_blank'>לחץ כאן לצפייה</a>`;
+            
+            addBotMsg(response, false);
+            lastResults = [];
+        } else {
+            let msg = `מצאתי ${results.length} תוצאות. <b>שלח את המספר של הסרט שאתה רוצה:</b><br><br>`;
+            msg += results.map((m, i) => `${i + 1}. ${m.title}`).join("<br>");
+            addBotMsg(msg, true);
+            lastResults = results; 
+        }
+    }
+</script>
+</body>
+</html>
